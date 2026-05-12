@@ -2008,6 +2008,11 @@ async function calculate() {
     const result = await response.json();
 
     if (result.ok) {
+      // Read user's typed values back into state arrays BEFORE render().
+      // render() rebuilds the DOM from dataA/dataB — without this, it
+      // overwrites the inputs with the old zero-filled arrays.
+      dataA = readMatrixFromInputs('a');
+      dataB = readMatrixFromInputs('b');
       dataR = result.result;
       render();
       renderSteps(result.steps, result.result);
