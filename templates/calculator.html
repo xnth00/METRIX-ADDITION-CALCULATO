@@ -1,0 +1,2523 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matrix Addition Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
+<!-- html2pdf.js — converts an HTML element directly to a downloadable PDF.
+     Loaded from cdnjs so no npm/pip install needed. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   DESIGN TOKENS — light theme (default)
+   Dark theme overrides follow via [data-theme="dark"]
+═══════════════════════════════════════════════════════════════ */
+:root {
+  --bg:               #f7f7f5;
+  --surface:          #ffffff;
+  --surface2:         #f2f2ef;
+  --border:           #e2e2dc;
+  --border-strong:    #c8c8c0;
+  --accent-a:         #185FA5;
+  --accent-b:         #3B6D11;
+  --accent-r:         #A32D2D;
+  --accent-a-light:   #e8f0fb;
+  --accent-b-light:   #eaf3e5;
+  --accent-r-light:   #fdf0f0;
+  --text:             #1a1a1a;
+  --muted:            #6b6b66;
+  --cell-bg:          #f0f4fb;
+  --cell-focus-border:#378ADD;
+  --cell-focus-bg:    #ffffff;
+  --result-bg:        #fdf0f0;
+  --result-border:    #f0c0c0;
+  --result-text:      #A32D2D;
+  --pill-bg:          #f0f0ea;
+  --sidebar-w:        304px;
+  --sidebar-collapsed:58px;
+  /* Shape scale — varies by element type for visual hierarchy */
+  --radius-xs:        4px;   /* matrix cells */
+  --radius-sm:        8px;   /* buttons, inputs */
+  --radius-md:        10px;  /* history cards */
+  --radius-lg:        14px;  /* profile card, prefs */
+  --radius-xl:        20px;  /* result panel */
+  --transition:       0.28s cubic-bezier(.4,0,.2,1);
+  --shadow-card:      0 2px 16px rgba(0,0,0,0.06);
+  --shadow-lift:      0 8px 32px rgba(0,0,0,0.10);
+  /* matrix-specific colours */
+  --mat-a-bg:         #eef4fc;
+  --mat-a-border:     #b8d0ef;
+  --mat-a-focus:      #185FA5;
+  --mat-b-bg:         #edf5e8;
+  --mat-b-border:     #b2d4a0;
+  --mat-b-focus:      #3B6D11;
+}
+
+/* ── Dark theme overrides ──────────────────────────────────── */
+[data-theme="dark"] {
+  --bg:               #111110;
+  --surface:          #1c1c1b;
+  --surface2:         #252523;
+  --border:           #2e2e2c;
+  --border-strong:    #3e3e3b;
+  --text:             #e8e8e4;
+  --muted:            #8a8a84;
+  --cell-bg:          #1e2530;
+  --cell-focus-bg:    #1e2530;
+  --result-bg:        #2a1010;
+  --result-border:    #5a2020;
+  --result-text:      #e07070;
+  --pill-bg:          #222220;
+  --accent-a-light:   #162540;
+  --accent-b-light:   #14261a;
+  --accent-r-light:   #2a1010;
+  --mat-a-bg:         #16202e;
+  --mat-a-border:     #1e3a5a;
+  --mat-b-bg:         #131f10;
+  --mat-b-border:     #1e3d18;
+  --shadow-card:      0 2px 16px rgba(0,0,0,0.3);
+  --shadow-lift:      0 8px 32px rgba(0,0,0,0.4);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESET
+═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: "Space Mono", monospace;
+  min-height: 100vh; display: flex;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR — shell
+═══════════════════════════════════════════════════════════════ */
+.sidebar {
+  width: var(--sidebar-w); min-height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+  position: fixed; top: 0; left: 0; bottom: 0;
+  overflow: hidden; transition: width var(--transition); z-index: 100;
+}
+.sidebar.collapsed { width: var(--sidebar-collapsed); }
+
+/* Sidebar header — hamburger + logo + tagline */
+.sidebar-toggle {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  min-height: 58px;
+}
+.sidebar.collapsed .sidebar-toggle { justify-content: center; padding: 14px 0; }
+.toggle-btn {
+  background: none; border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm); width: 32px; height: 32px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; color: var(--muted);
+  transition: border-color 0.18s, color 0.18s, background 0.18s; flex-shrink: 0;
+}
+.toggle-btn:hover { border-color: var(--accent-a); color: var(--accent-a); background: var(--accent-a-light); }
+.toggle-btn svg { width: 15px; height: 15px; transition: transform var(--transition); }
+.sidebar.collapsed .toggle-btn svg { transform: rotate(180deg); }
+
+/* Brand block (logo word + tagline) */
+.sidebar-brand {
+  display: flex; flex-direction: column; gap: 1px;
+  opacity: 1; transition: opacity var(--transition);
+  white-space: nowrap; overflow: hidden; flex: 1;
+}
+.sidebar.collapsed .sidebar-brand { opacity: 0; pointer-events: none; width: 0; }
+.sidebar-brand-name {
+  font-family: "Syne", sans-serif; font-size: 0.82rem; font-weight: 800;
+  color: var(--text); line-height: 1;
+}
+.sidebar-brand-name .a { color: var(--accent-a); }
+.sidebar-brand-name .b { color: var(--accent-b); }
+.sidebar-brand-sub {
+  font-size: 0.55rem; color: var(--muted); letter-spacing: 0.5px;
+  text-transform: none; font-weight: 400;
+}
+
+/* Scrollable nav area — must scroll so edit form is never clipped */
+.sidebar-nav {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 6px 10px 16px;
+  display: flex; flex-direction: column; gap: 1px;
+  /* Smooth momentum scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+}
+/* Styled scrollbar */
+.sidebar-nav::-webkit-scrollbar { width: 4px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 99px;
+  transition: background 0.15s;
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* Section labels — toned down, lower weight */
+.nav-section-label {
+  font-size: 0.58rem; letter-spacing: 1px; text-transform: uppercase;
+  font-weight: 700; color: var(--muted);
+  padding: 14px 4px 5px; white-space: nowrap; overflow: hidden;
+  opacity: 1; transition: opacity var(--transition);
+}
+.sidebar.collapsed .nav-section-label { opacity: 0; pointer-events: none; }
+
+/* Nav rows */
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap; overflow: hidden;
+  color: var(--text); border: none; background: none;
+  width: 100%; text-align: left;
+  font-family: "Space Mono", monospace; font-size: 0.72rem; text-decoration: none;
+}
+.nav-item:hover { background: var(--bg); }
+.nav-item.active { background: var(--accent-a-light); color: var(--accent-a); }
+.nav-item.danger { color: var(--accent-r); }
+.nav-item.danger:hover { background: var(--accent-r-light); }
+.nav-icon { flex-shrink: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+.nav-icon svg { width: 16px; height: 16px; }
+.nav-label { opacity: 1; transition: opacity var(--transition); font-size: 0.72rem; flex: 1; }
+.sidebar.collapsed .nav-label { opacity: 0; pointer-events: none; }
+/* Chevron arrow */
+.nav-arrow {
+  font-size: 0.65rem; color: var(--border-strong); opacity: 1;
+  transition: transform 0.25s var(--transition), opacity var(--transition), color 0.15s;
+  margin-left: auto; line-height: 1;
+}
+.sidebar.collapsed .nav-arrow { opacity: 0; pointer-events: none; }
+.nav-item.active .nav-arrow { transform: rotate(90deg); color: var(--accent-a); }
+
+/* Section divider — more intentional gap */
+.nav-divider {
+  height: 1px; background: var(--border);
+  margin: 8px 4px; opacity: 0.7;
+}
+
+/* Collapsible sub-panels — max-height slide accordion */
+.sb-panel {
+  display: flex; flex-direction: column;
+  padding: 0; gap: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.32s ease-in-out, padding 0.22s ease;
+}
+.sb-panel.open {
+  /* 1400px ceiling is taller than any realistic panel content.
+     The transition stops visually at actual content height. */
+  max-height: 1400px;
+  padding: 4px 0 12px;
+  /* Allow scrolling within the panel if viewport is very short */
+  overflow-y: visible;
+}
+.sidebar.collapsed .sb-panel {
+  max-height: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR — PROFILE PANEL
+═══════════════════════════════════════════════════════════════ */
+.profile-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px 16px 14px; margin-bottom: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+/* Avatar + name row */
+.profile-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.profile-avatar {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(145deg, #2d7dd6, #185FA5);
+  display: flex; align-items: center; justify-content: center;
+  font-family: "Syne", sans-serif; font-weight: 800; font-size: 0.92rem; color: #fff;
+  box-shadow: 0 3px 10px rgba(24,95,165,0.28), 0 0 0 3px rgba(24,95,165,0.12);
+  letter-spacing: 0.5px;
+}
+.profile-header-info { flex: 1; min-width: 0; }
+.profile-name {
+  font-family: "Syne", sans-serif; font-size: 0.82rem; font-weight: 700;
+  color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 1px;
+}
+.profile-email {
+  font-size: 0.6rem; color: var(--muted); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; line-height: 1.4;
+}
+.profile-badge {
+  display: inline-flex; align-items: center;
+  background: var(--accent-a-light); color: var(--accent-a);
+  font-size: 0.52rem; letter-spacing: 0.5px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px; border: 1px solid #c5d8f0;
+  margin-top: 4px; font-weight: 700;
+}
+
+/* Stats grid: 2×2 — smaller radius, more air inside */
+.profile-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 14px;
+}
+.profile-stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 9px 11px;
+  display: flex; flex-direction: column; gap: 3px;
+  transition: border-color 0.15s;
+}
+.profile-stat:hover { border-color: var(--border-strong); }
+.stat-val {
+  font-family: "Syne", sans-serif; font-size: 0.95rem; font-weight: 700;
+  color: var(--text); line-height: 1;
+}
+.stat-key {
+  font-size: 0.52rem; color: var(--muted); letter-spacing: 0.3px;
+  text-transform: uppercase; font-weight: 700;
+}
+
+/* Edit profile button */
+.btn-edit-profile {
+  width: 100%; height: 32px;
+  background: none; border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); cursor: pointer;
+  font-family: "Space Mono", monospace; font-size: 0.62rem;
+  font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase;
+  color: var(--muted); transition: border-color 0.18s, color 0.18s, background 0.18s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-edit-profile:hover {
+  border-color: var(--accent-a); color: var(--accent-a);
+  background: var(--accent-a-light);
+}
+.btn-edit-profile svg { width: 12px; height: 12px; }
+
+/* Edit form — slides open below the profile card */
+.edit-form {
+  display: none; flex-direction: column; gap: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 14px 14px 14px; margin-top: 0;
+  /* Never clip content — all fields must always be reachable */
+  overflow: visible;
+  animation: editFormIn 0.18s ease;
+}
+@keyframes editFormIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.edit-form.open { display: flex; }
+
+.ef-title {
+  font-family: "Syne", sans-serif; font-size: 0.72rem; font-weight: 700;
+  color: var(--text); display: flex; align-items: center; gap: 8px;
+}
+.ef-title svg { width: 13px; height: 13px; stroke: var(--accent-a); }
+
+.ef-tabs {
+  display: flex; gap: 3px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 999px; /* pill shape */
+  padding: 3px;
+}
+.ef-tab {
+  flex: 1; padding: 5px 4px; text-align: center;
+  font-family: "Space Mono", monospace; font-size: 0.58rem; font-weight: 700;
+  letter-spacing: 0.3px; text-transform: uppercase; color: var(--muted);
+  border: none; background: none; border-radius: 999px; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ef-tab.active { background: var(--accent-a); color: #fff; }
+
+.ef-fields { display: flex; flex-direction: column; gap: 8px; }
+.ef-row { display: flex; gap: 6px; }
+.ef-row .ef-field { flex: 1; }
+
+.ef-field { display: flex; flex-direction: column; gap: 4px; }
+.ef-label {
+  font-size: 0.56rem; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--muted); font-weight: 700;
+}
+.ef-input {
+  height: 34px; width: 100%; padding: 0 10px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text);
+  font-family: "Space Mono", monospace; font-size: 0.75rem;
+  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ef-input:focus {
+  border-color: var(--cell-focus-border);
+  box-shadow: 0 0 0 3px rgba(55,138,221,0.12);
+}
+
+.ef-actions { display: flex; gap: 7px; margin-top: 2px; }
+.ef-save {
+  flex: 1; height: 32px; background: var(--accent-a); color: #fff;
+  border: none; border-radius: 999px; cursor: pointer;
+  font-family: "Space Mono", monospace; font-size: 0.63rem;
+  font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase;
+  transition: opacity 0.15s, box-shadow 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.ef-save:hover { opacity: 0.9; box-shadow: 0 3px 10px rgba(24,95,165,0.3); }
+.ef-save:disabled { opacity: 0.45; cursor: not-allowed; }
+.ef-cancel {
+  height: 32px; padding: 0 12px; background: none;
+  border: 1px solid var(--border-strong); border-radius: 999px; cursor: pointer;
+  font-family: "Space Mono", monospace; font-size: 0.63rem; color: var(--muted);
+  transition: border-color 0.15s, color 0.15s;
+}
+.ef-cancel:hover { border-color: var(--text); color: var(--text); }
+.ef-error {
+  font-size: 0.61rem; color: var(--accent-r); margin-top: 1px;
+  display: none; line-height: 1.4;
+}
+.ef-error.show { display: block; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR — HISTORY PANEL
+═══════════════════════════════════════════════════════════════ */
+.history-panel { gap: 6px; }
+
+/* Toolbar: count on left, clear button on right */
+.history-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 8px; padding: 0 2px;
+}
+.history-count {
+  font-family: "Syne", sans-serif;
+  font-size: 0.7rem; font-weight: 700; color: var(--text);
+}
+.history-count span { color: var(--muted); font-weight: 400; font-family: "Space Mono", monospace; font-size: 0.62rem; }
+
+/* Clear all — subtle icon+text button */
+.btn-clear-all {
+  display: flex; align-items: center; gap: 4px;
+  background: transparent; border: 1px solid var(--border-strong); color: var(--muted);
+  font-family: "Space Mono", monospace; font-size: 0.58rem; letter-spacing: 0.2px;
+  padding: 4px 9px; border-radius: 999px; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  white-space: nowrap; flex-shrink: 0;
+}
+.btn-clear-all:hover {
+  border-color: var(--accent-r); color: var(--accent-r);
+  background: var(--accent-r-light);
+}
+.btn-clear-all svg { width: 11px; height: 11px; }
+
+/* Scrollable history list */
+.history-list {
+  display: flex; flex-direction: column; gap: 5px;
+  max-height: 360px; overflow-y: auto;
+  padding-right: 1px; /* prevents scrollbar overlap */
+}
+.history-list::-webkit-scrollbar { width: 4px; }
+.history-list::-webkit-scrollbar-track { background: transparent; }
+.history-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+.history-list::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+.history-empty {
+  text-align: center; color: var(--muted); font-size: 0.65rem;
+  padding: 28px 12px; line-height: 2; opacity: 0.55;
+  border: 1.5px dashed var(--border); border-radius: var(--radius-md);
+}
+
+/* ── History row — compact single-line entry ── */
+.hcard {
+  display: flex; align-items: center;
+  padding: 8px 10px 8px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer; gap: 6px;
+  transition: background 0.15s, border-color 0.15s;
+  border: 1px solid transparent;
+  animation: hSlideIn 0.18s ease;
+}
+@keyframes hSlideIn {
+  from { opacity:0; transform:translateX(-6px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+.hcard:hover {
+  background: var(--accent-a-light);
+  border-color: rgba(24,95,165,0.2);
+}
+/* Active/selected state when this entry is currently loaded */
+.hcard.loaded {
+  background: var(--accent-a-light);
+  border-color: rgba(24,95,165,0.35);
+}
+
+.hcard-meta { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow: hidden; }
+
+/* Number badge — e.g. #6 */
+.hcard-num {
+  font-size: 0.56rem; font-weight: 700; color: var(--accent-a);
+  background: var(--accent-a-light); border: 1px solid rgba(24,95,165,0.2);
+  padding: 2px 7px; border-radius: 999px; white-space: nowrap; flex-shrink: 0;
+}
+/* Loaded state: badge turns solid blue */
+.hcard.loaded .hcard-num {
+  background: var(--accent-a); color: #fff; border-color: transparent;
+}
+
+/* Size badge — e.g. 3×3 */
+.hcard-size {
+  font-size: 0.6rem; font-weight: 700; color: var(--muted);
+  background: var(--surface2); border: 1px solid var(--border);
+  padding: 2px 5px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+  font-family: "Space Mono", monospace;
+}
+
+/* Timestamp — right-aligned, very subtle */
+.hcard-time {
+  font-size: 0.54rem; color: var(--muted); opacity: 0.55;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-left: auto; flex-shrink: 1;
+}
+
+/* Delete button — only visible on row hover */
+.hcard-del {
+  width: 22px; height: 22px; border-radius: var(--radius-xs);
+  display: flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer; flex-shrink: 0;
+  background: transparent; color: var(--muted);
+  opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+.hcard:hover .hcard-del { opacity: 1; }
+.hcard-del:hover { background: var(--accent-r-light); color: var(--accent-r); }
+.hcard-del svg { width: 12px; height: 12px; }
+
+/* hmat / hcard-load styles removed — sidebar is now a simple list */
+
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR — PREFERENCES PANEL
+═══════════════════════════════════════════════════════════════ */
+.prefs-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 4px 0;
+  display: flex; flex-direction: column; gap: 0;
+  overflow: hidden;
+}
+.pref-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 14px; gap: 12px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.pref-row:last-child { border-bottom: none; }
+.pref-row:hover { background: var(--surface); }
+.pref-text { flex: 1; min-width: 0; }
+.pref-label { font-size: 0.7rem; color: var(--text); font-weight: 700; margin-bottom: 2px; }
+.pref-sub   { font-size: 0.58rem; color: var(--muted); line-height: 1.3; }
+
+/* Toggle switch — slightly larger, more tactile */
+.toggle-switch {
+  width: 38px; height: 22px; background: var(--border-strong);
+  border-radius: 999px; position: relative; cursor: pointer;
+  transition: background 0.22s; flex-shrink: 0; border: none;
+}
+.toggle-switch.on { background: var(--accent-a); }
+.toggle-switch::after {
+  content: ''; position: absolute; width: 16px; height: 16px;
+  background: #fff; border-radius: 50%; top: 3px; left: 3px;
+  transition: transform 0.22s var(--transition);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle-switch.on::after { transform: translateX(16px); }
+
+/* Default size select */
+.pref-select {
+  height: 28px; padding: 0 8px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text);
+  font-family: "Space Mono", monospace; font-size: 0.65rem; outline: none;
+  transition: border-color 0.15s;
+}
+.pref-select:focus { border-color: var(--cell-focus-border); }
+
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR BOTTOM — Log out
+═══════════════════════════════════════════════════════════════ */
+.sidebar-bottom {
+  padding: 10px; border-top: 1px solid var(--border); flex-shrink: 0;
+  background: var(--surface2);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN CONTENT AREA
+═══════════════════════════════════════════════════════════════ */
+.main {
+  margin-left: var(--sidebar-w); flex: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 48px 24px 80px; transition: margin-left var(--transition);
+}
+.main.collapsed { margin-left: var(--sidebar-collapsed); }
+
+.header { text-align: center; margin-bottom: 36px; }
+.header h1 {
+  font-family: "Syne", sans-serif; font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px;
+}
+.header h1 span.a { color: var(--accent-a); }
+.header h1 span.b { color: var(--accent-b); }
+.header p { font-size: 0.72rem; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+
+/* Size picker */
+.size-card {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 14px 24px;
+  margin-bottom: 28px; flex-wrap: wrap; justify-content: center;
+}
+.size-card label { font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+.size-card input[type=number] {
+  width: 56px; height: 36px; border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); font-family: "Space Mono", monospace; font-size: 0.95rem;
+  text-align: center; background: var(--cell-bg); color: var(--text); outline: none;
+  transition: border-color 0.15s;
+}
+.size-card input[type=number]:focus { border-color: var(--cell-focus-border); }
+.size-sep { color: var(--muted); font-size: 1rem; }
+.size-hint { font-size: 0.65rem; color: var(--muted); letter-spacing: 1px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   ACTION BUTTONS — two-row layout
+   Row 1: primary actions  (Calculate, Random)
+   Row 2: utility actions  (Copy, TXT, PDF, Reset)
+═══════════════════════════════════════════════════════════════ */
+.action-area {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; margin-bottom: 32px;
+}
+
+/* Row 1 — primary */
+.action-row-primary {
+  display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+}
+
+/* Row 2 — utility */
+.action-row-utility {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  /* Only visible after a calculation has been run */
+  opacity: 0; transform: translateY(6px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  pointer-events: none;
+}
+.action-row-utility.visible {
+  opacity: 1; transform: translateY(0); pointer-events: auto;
+}
+
+/* Shared base for all action buttons */
+.btn-action {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: "Space Mono", monospace; font-weight: 700;
+  border-radius: 999px; cursor: pointer;
+  border: none; transition: opacity 0.15s, transform 0.12s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+.btn-action svg { width: 14px; height: 14px; flex-shrink: 0; }
+.btn-action:active { transform: translateY(0) !important; }
+.btn-action:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
+
+/* Calculate — solid blue, prominent */
+.btn-calculate {
+  background: var(--accent-a); color: #fff;
+  font-size: 0.8rem; letter-spacing: 0.5px; padding: 12px 30px;
+  box-shadow: 0 2px 12px rgba(24,95,165,0.2);
+}
+.btn-calculate:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 5px 18px rgba(24,95,165,0.3); }
+
+/* Random — green accent, medium */
+.btn-random {
+  background: var(--accent-b); color: #fff;
+  font-size: 0.75rem; letter-spacing: 0.3px; padding: 12px 22px;
+  box-shadow: 0 2px 12px rgba(59,109,17,0.2);
+}
+.btn-random:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 5px 16px rgba(59,109,17,0.28); }
+
+/* Utility buttons — all ghost style, consistent weight */
+.btn-util {
+  background: var(--surface); color: var(--text);
+  border: 1.5px solid var(--border-strong) !important;
+  font-size: 0.68rem; letter-spacing: 0.2px; padding: 9px 16px;
+}
+.btn-util:hover { border-color: var(--accent-a) !important; color: var(--accent-a); transform: translateY(-1px); }
+
+/* Copy — subtle blue tint on hover */
+.btn-copy:hover { background: var(--accent-a-light) !important; }
+
+/* TXT — subtle green tint */
+.btn-txt:hover  { border-color: var(--accent-b) !important; color: var(--accent-b); background: var(--accent-b-light) !important; }
+
+/* PDF — subtle red tint */
+.btn-pdf:hover  { border-color: var(--accent-r) !important; color: var(--accent-r); background: var(--accent-r-light) !important; }
+
+/* Reset — danger-ish */
+.btn-reset { color: var(--muted); }
+.btn-reset:hover { border-color: var(--accent-r) !important; color: var(--accent-r); background: var(--accent-r-light) !important; }
+
+/* ── Random fill animation — cell flashes when randomised ── */
+@keyframes cellFlash {
+  0%   { background: rgba(255, 200, 50, 0.55); transform: scale(1.08); }
+  60%  { background: rgba(255, 200, 50, 0.15); transform: scale(1.02); }
+  100% { background: inherit; transform: scale(1); }
+}
+.mat-table input.flashing {
+  animation: cellFlash 0.45s ease-out forwards;
+}
+
+/* Keep backward-compat — btn-primary / btn-secondary still used in some spots */
+.btn-primary {
+  background: var(--accent-a); color: #fff; border: none;
+  font-family: "Space Mono", monospace; font-size: 0.8rem;
+  font-weight: 700; letter-spacing: 0.5px; padding: 11px 28px;
+  border-radius: 999px; cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.btn-primary:hover { opacity: 0.88; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(24,95,165,0.25); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-secondary {
+  background: transparent; color: var(--muted); border: 1px solid var(--border-strong);
+  font-family: "Space Mono", monospace; font-size: 0.75rem; letter-spacing: 0.5px;
+  padding: 11px 20px; border-radius: 999px; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, transform 0.1s;
+}
+.btn-secondary:hover { border-color: var(--text); color: var(--text); transform: translateY(-1px); }
+
+/* ═══════════════════════════════════════════════════════════════
+   MATRIX DISPLAY — colour-coded A (blue) / B (green) / R (red)
+═══════════════════════════════════════════════════════════════ */
+.matrices-area {
+  display: flex; align-items: flex-start; gap: 18px;
+  flex-wrap: wrap; justify-content: center; margin-bottom: 28px;
+}
+.mat-block { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.mat-label { font-family: "Syne", sans-serif; font-size: 0.85rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.mat-label.a { color: var(--accent-a); }
+.mat-label.b { color: var(--accent-b); }
+.mat-label.r { color: var(--accent-r); }
+.mat-op { font-size: 2rem; font-weight: 700; color: var(--muted); padding-top: 34px; line-height: 1; user-select: none; }
+.bracket-wrap { display: flex; align-items: center; gap: 2px; }
+.bracket { font-size: 2.8rem; font-weight: 200; line-height: 1; user-select: none; }
+.bracket.a { color: rgba(24,95,165,0.35); }
+.bracket.b { color: rgba(59,109,17,0.35); }
+.bracket.r { color: rgba(163,45,45,0.35); }
+.mat-table { border-collapse: collapse; }
+.mat-table th { font-size: 0.6rem; color: var(--muted); text-align: center; padding: 2px 4px 6px; font-weight: 400; letter-spacing: 1px; }
+.mat-table td { padding: 3px; }
+
+/* Base cell style — smallest radius in the hierarchy */
+.mat-table input {
+  width: 56px; height: 44px;
+  border-radius: var(--radius-xs);
+  font-family: "Space Mono", monospace; font-size: 0.9rem;
+  text-align: center; outline: none;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.12s;
+}
+.mat-table input:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+/* Matrix A — blue tint */
+.mat-table.tbl-a input {
+  background: var(--mat-a-bg); border: 1.5px solid var(--mat-a-border);
+  color: var(--accent-a);
+}
+.mat-table.tbl-a input:focus {
+  border-color: var(--mat-a-focus);
+  box-shadow: 0 0 0 3px rgba(24,95,165,0.15);
+  background: var(--cell-focus-bg);
+}
+
+/* Matrix B — green tint */
+.mat-table.tbl-b input {
+  background: var(--mat-b-bg); border: 1.5px solid var(--mat-b-border);
+  color: var(--accent-b);
+}
+.mat-table.tbl-b input:focus {
+  border-color: var(--mat-b-focus);
+  box-shadow: 0 0 0 3px rgba(59,109,17,0.15);
+  background: var(--cell-focus-bg);
+}
+
+/* Result — red tint, read-only */
+.mat-table input.result-inp {
+  background: var(--result-bg); border: 1.5px solid var(--result-border);
+  color: var(--result-text); font-weight: 700; pointer-events: none;
+}
+
+.info-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 40px; }
+.info-pill {
+  background: var(--pill-bg); border: 1px solid var(--border);
+  border-radius: 999px; padding: 5px 14px; font-size: 0.68rem; color: var(--muted); letter-spacing: 0.5px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STEP-BY-STEP VIEWER (unchanged — just re-declared here)
+═══════════════════════════════════════════════════════════════ */
+#steps-section {
+  width: 100%; max-width: 900px;
+  opacity: 0; transform: translateY(24px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  pointer-events: none;
+}
+#steps-section.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.steps-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+.steps-header-icon {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent-a), #2278c7);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(24,95,165,0.25);
+}
+.steps-header-icon svg { width: 18px; height: 18px; stroke: #fff; }
+.steps-header-text h2 { font-family: "Syne", sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.steps-header-text p  { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.5px; }
+.phase-label { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; margin-top: 28px; }
+.phase-label:first-of-type { margin-top: 0; }
+.phase-num { width: 26px; height: 26px; border-radius: 50%; background: var(--accent-a); color: #fff; font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.phase-title { font-size: 0.78rem; font-weight: 700; color: var(--text); letter-spacing: 0.5px; }
+.phase-sub   { font-size: 0.65rem; color: var(--muted); margin-left: 4px; }
+.step-grid { display: grid; gap: 10px; margin-bottom: 4px; }
+.step-cell {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 12px 10px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  box-shadow: var(--shadow-card);
+  opacity: 0; transform: scale(0.92) translateY(8px);
+  transition: opacity 0.35s ease, transform 0.35s ease, border-color 0.15s, box-shadow 0.15s;
+}
+.step-cell.shown { opacity: 1; transform: scale(1) translateY(0); }
+.step-cell:hover { border-color: var(--accent-a); box-shadow: var(--shadow-lift); transform: translateY(-2px) scale(1.02); }
+.step-cell-pos { font-size: 0.55rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: 99px; padding: 2px 8px; }
+.step-cell-eq { display: flex; align-items: center; gap: 5px; font-size: 0.95rem; font-weight: 700; line-height: 1; }
+.step-val-a { color: var(--accent-a); }
+.step-val-b { color: var(--accent-b); }
+.step-val-sum { color: var(--accent-r); }
+.step-op { color: var(--border-strong); font-size: 1rem; font-weight: 400; }
+.step-eq-sign { color: var(--muted); font-size: 1rem; font-weight: 400; margin: 0 2px; }
+.step-cell-bar { width: 100%; height: 3px; border-radius: 99px; background: linear-gradient(90deg, var(--accent-a) 0%, var(--accent-b) 50%, var(--accent-r) 100%); margin-top: 2px; }
+.steps-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-card); }
+.steps-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.steps-table thead th { background: var(--bg); border-bottom: 1px solid var(--border); padding: 10px 14px; text-align: left; font-size: 0.6rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.steps-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; opacity: 0; animation: rowFadeIn 0.3s ease forwards; }
+.steps-table tbody tr:last-child { border-bottom: none; }
+.steps-table tbody tr:hover { background: var(--bg); }
+@keyframes rowFadeIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
+.steps-table td { padding: 11px 14px; vertical-align: middle; }
+.pos-badge { display: inline-block; background: var(--accent-a-light); color: var(--accent-a); font-size: 0.6rem; letter-spacing: 1px; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; border: 1px solid #c5d8f0; font-weight: 700; }
+.td-eq { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.eq-chip { padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; }
+.eq-chip.a   { background: var(--accent-a-light); color: var(--accent-a); border: 1px solid #c5d8f0; }
+.eq-chip.b   { background: var(--accent-b-light); color: var(--accent-b); border: 1px solid #c4d9b8; }
+.eq-chip.sum { background: var(--accent-r-light); color: var(--accent-r); border: 1px solid #f0c0c0; }
+.eq-text-op  { color: var(--muted); font-size: 0.9rem; }
+.td-note     { font-size: 0.65rem; color: var(--muted); white-space: nowrap; }
+.result-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-lift); }
+.result-panel-header { background: linear-gradient(135deg, #6b0f0f 0%, var(--accent-r) 55%, #cc4444 100%); padding: 18px 24px; display: flex; align-items: center; gap: 14px; }
+.result-panel-icon { width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.result-panel-icon svg { width: 22px; height: 22px; stroke: #fff; }
+.result-panel-title { color: #fff; }
+.result-panel-title h3 { font-family: "Syne", sans-serif; font-size: 1rem; font-weight: 700; margin-bottom: 2px; }
+.result-panel-title p  { font-size: 0.65rem; opacity: 0.8; letter-spacing: 1px; }
+.result-badge-wrap { margin-left: auto; }
+.result-verified-badge { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; padding: 5px 12px; color: #fff; font-size: 0.65rem; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; white-space: nowrap; }
+.result-verified-badge svg { width: 12px; height: 12px; stroke: #fff; }
+.result-panel-body { padding: 28px 24px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+.result-matrix-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.result-matrix-title { font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; color: var(--accent-r); font-weight: 700; }
+.result-bracket-wrap { display: flex; align-items: center; gap: 4px; }
+.result-bracket { font-size: 3rem; font-weight: 200; color: var(--accent-r); line-height: 1; opacity: 0.5; }
+.result-grid { display: grid; gap: 6px; }
+.result-cell { width: 60px; height: 48px; background: var(--accent-r-light); border: 1.5px solid var(--result-border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-family: "Space Mono", monospace; font-size: 0.95rem; font-weight: 700; color: var(--result-text); opacity: 0; transform: scale(0.8); transition: opacity 0.3s ease, transform 0.3s ease; }
+.result-cell.shown { opacity: 1; transform: scale(1); }
+.result-cell:hover { background: #fbe4e4; border-color: var(--accent-r); transform: scale(1.06); box-shadow: 0 4px 12px rgba(163,45,45,0.15); }
+.result-panel-footer { border-top: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: var(--bg); }
+.result-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.result-stat-value { font-size: 1rem; font-weight: 700; color: var(--text); }
+.result-stat-label { font-size: 0.6rem; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+.result-stat-divider { width: 1px; height: 32px; background: var(--border); }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 12px 18px; font-size: 0.72rem; color: var(--text); box-shadow: var(--shadow-lift); z-index: 1000; max-width: 360px; animation: toastIn 0.2s ease; }
+.toast.error   { border-left: 4px solid var(--accent-r); }
+.toast.success { border-left: 4px solid var(--accent-b); }
+@keyframes toastIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+/* Accessibility: reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .step-cell, #steps-section, .hcard { transition: none; animation: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+
+  <!-- Top bar: hamburger + logo + tagline -->
+  <div class="sidebar-toggle">
+    <button class="toggle-btn" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="6"/><line x1="18" y1="12" x2="6" y2="12"/><line x1="18" y1="18" x2="6" y2="18"/>
+      </svg>
+    </button>
+    <div class="sidebar-brand">
+      <span class="sidebar-brand-name"><span class="a">Matrix</span> <span class="b">Calc</span></span>
+      <span class="sidebar-brand-sub">Addition Calculator</span>
+    </div>
+  </div>
+
+  <!-- ── Scrollable nav ── -->
+  <div class="sidebar-nav">
+
+    <!-- ACCOUNT section -->
+    <div class="nav-section-label">Account</div>
+
+    <!-- Profile nav row -->
+    <button class="nav-item active" id="nav-profile" onclick="toggleSection('profile')">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+      </span>
+      <span class="nav-label">Profile</span>
+      <span class="nav-arrow">›</span>
+    </button>
+
+    <!-- Profile panel -->
+    <div class="sb-panel open" id="section-profile">
+
+      <!-- Static profile card -->
+      <div class="profile-card" id="profile-static">
+        <div class="profile-header">
+          <div class="profile-avatar" id="profile-avatar-initials">{{ user_initials }}</div>
+          <div class="profile-header-info">
+            <div class="profile-name" id="profile-display-name">{{ user_name }}</div>
+            <div class="profile-email" id="profile-display-email">{{ user_email }}</div>
+            <span class="profile-badge">Student</span>
+          </div>
+        </div>
+
+        <!-- Stats: 2×2 grid loaded from /api/profile on page load -->
+        <div class="profile-stats" id="profile-stats">
+          <div class="profile-stat">
+            <span class="stat-val" id="stat-calcs">—</span>
+            <span class="stat-key">Calculations</span>
+          </div>
+          <div class="profile-stat">
+            <span class="stat-val" id="stat-size">—</span>
+            <span class="stat-key">Fav Size</span>
+          </div>
+          <div class="profile-stat">
+            <span class="stat-val" id="stat-joined">—</span>
+            <span class="stat-key">Joined</span>
+          </div>
+          <div class="profile-stat">
+            <span class="stat-val" id="stat-active">—</span>
+            <span class="stat-key">Last Active</span>
+          </div>
+        </div>
+
+        <!-- Edit button -->
+        <button class="btn-edit-profile" onclick="openEditForm('name')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit Profile
+        </button>
+      </div>
+
+      <!-- Edit form (hidden until Edit Profile clicked) -->
+      <div class="edit-form" id="edit-form">
+        <div class="ef-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit Profile
+        </div>
+
+        <!-- Tabs: Name / Email / Password -->
+        <div class="ef-tabs">
+          <button class="ef-tab active" id="etab-name"  onclick="switchEditTab('name')">Name</button>
+          <button class="ef-tab"        id="etab-email" onclick="switchEditTab('email')">Email</button>
+          <button class="ef-tab"        id="etab-pw"    onclick="switchEditTab('pw')">Password</button>
+        </div>
+
+        <!-- Name fields -->
+        <div class="ef-fields" id="ef-name">
+          <div class="ef-row">
+            <div class="ef-field">
+              <label class="ef-label">First Name</label>
+              <input class="ef-input" id="ef-fname" type="text" placeholder="First" />
+            </div>
+            <div class="ef-field">
+              <label class="ef-label">Last Name</label>
+              <input class="ef-input" id="ef-lname" type="text" placeholder="Last" />
+            </div>
+          </div>
+          <div class="ef-error" id="ef-name-err"></div>
+        </div>
+
+        <!-- Email field -->
+        <div class="ef-fields" id="ef-email" style="display:none">
+          <div class="ef-field">
+            <label class="ef-label">New Email</label>
+            <input class="ef-input" id="ef-email-inp" type="email" placeholder="you@email.com" />
+          </div>
+          <div class="ef-error" id="ef-email-err"></div>
+        </div>
+
+        <!-- Password fields -->
+        <div class="ef-fields" id="ef-pw" style="display:none">
+          <div class="ef-field">
+            <label class="ef-label">Current Password</label>
+            <input class="ef-input" id="ef-cpw" type="password" placeholder="••••••••" />
+          </div>
+          <div class="ef-field">
+            <label class="ef-label">New Password</label>
+            <input class="ef-input" id="ef-npw" type="password" placeholder="Min 8 chars" />
+          </div>
+          <div class="ef-field">
+            <label class="ef-label">Confirm Password</label>
+            <input class="ef-input" id="ef-npw2" type="password" placeholder="Repeat" />
+          </div>
+          <div class="ef-error" id="ef-pw-err"></div>
+        </div>
+
+        <div class="ef-actions">
+          <button class="ef-save" id="ef-save-btn" onclick="saveProfileEdit()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Save
+          </button>
+          <button class="ef-cancel" onclick="closeEditForm()">Cancel</button>
+        </div>
+      </div>
+
+    </div><!-- /section-profile -->
+
+    <div class="nav-divider"></div>
+
+    <!-- DATA section -->
+    <div class="nav-section-label">Data</div>
+
+    <!-- History nav row -->
+    <button class="nav-item" id="nav-history" onclick="toggleSection('history')">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/>
+        </svg>
+      </span>
+      <span class="nav-label">History</span>
+      <span class="nav-arrow">›</span>
+    </button>
+
+    <!-- History panel -->
+    <div class="sb-panel history-panel" id="section-history">
+      <!-- Toolbar: count label + clear button -->
+      <div class="history-toolbar">
+        <div class="history-count">History <span id="history-count-num">0</span></div>
+        <button class="btn-clear-all" id="btn-clear-all" onclick="clearHistory()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          </svg>
+          Clear
+        </button>
+      </div>
+
+      <!-- The list of history cards — populated by renderHistory() -->
+      <div class="history-list" id="history-list">
+        <div class="history-empty" id="history-empty">
+          No calculations yet.<br>Run your first one to see it here.
+        </div>
+      </div>
+    </div><!-- /section-history -->
+
+    <div class="nav-divider"></div>
+
+    <!-- PREFERENCES section -->
+    <div class="nav-section-label">Preferences</div>
+
+    <button class="nav-item" id="nav-settings" onclick="toggleSection('settings')">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </span>
+      <span class="nav-label">Preferences</span>
+      <span class="nav-arrow">›</span>
+    </button>
+
+    <div class="sb-panel" id="section-settings">
+      <div class="prefs-card">
+
+        <!-- Dark mode -->
+        <div class="pref-row">
+          <div class="pref-text">
+            <div class="pref-label">Dark Mode</div>
+            <div class="pref-sub">Switch to a dark colour scheme</div>
+          </div>
+          <button class="toggle-switch" id="pref-dark" onclick="togglePref('dark', this)" aria-label="Toggle dark mode"></button>
+        </div>
+
+        <!-- Row & column headers -->
+        <div class="pref-row">
+          <div class="pref-text">
+            <div class="pref-label">Row &amp; Column Labels</div>
+            <div class="pref-sub">Show R1, C1… headers on matrices</div>
+          </div>
+          <button class="toggle-switch on" id="pref-headers" onclick="togglePref('headers', this)" aria-label="Toggle headers"></button>
+        </div>
+
+        <!-- Animations -->
+        <div class="pref-row">
+          <div class="pref-text">
+            <div class="pref-label">Step Animations</div>
+            <div class="pref-sub">Staggered reveal in solution viewer</div>
+          </div>
+          <button class="toggle-switch on" id="pref-anim" onclick="togglePref('anim', this)" aria-label="Toggle animations"></button>
+        </div>
+
+        <!-- Auto-save history -->
+        <div class="pref-row">
+          <div class="pref-text">
+            <div class="pref-label">Auto-Save History</div>
+            <div class="pref-sub">Show results in the History panel</div>
+          </div>
+          <button class="toggle-switch on" id="pref-autosave" onclick="togglePref('autosave', this)" aria-label="Toggle auto-save"></button>
+        </div>
+
+        <!-- Default matrix size -->
+        <div class="pref-row">
+          <div class="pref-text">
+            <div class="pref-label">Default Matrix Size</div>
+            <div class="pref-sub">Grid size when the page loads</div>
+          </div>
+          <select class="pref-select" id="pref-size" onchange="applyDefaultSize(this.value)" aria-label="Default matrix size">
+            <option value="2">2 × 2</option>
+            <option value="3" selected>3 × 3</option>
+            <option value="4">4 × 4</option>
+            <option value="5">5 × 5</option>
+          </select>
+        </div>
+
+      </div>
+    </div><!-- /section-settings -->
+
+  </div><!-- /sidebar-nav -->
+
+  <!-- Bottom: Log Out -->
+  <div class="sidebar-bottom">
+    <a href="{{ url_for('auth.logout') }}" class="nav-item danger">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </span>
+      <span class="nav-label">Log Out</span>
+    </a>
+  </div>
+
+</aside><!-- /sidebar -->
+
+
+<!-- ═══════════════════════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════════════════════ -->
+<main class="main" id="main">
+
+  <div class="header">
+    <h1><span class="a">Addition</span> Matrix <span class="b">Calculator</span></h1>
+    <p id="header-welcome">Welcome, {{ user_name }}</p>
+  </div>
+
+  <!-- Size picker -->
+  <div class="size-card">
+    <label>Rows</label>
+    <input type="number" id="inp-rows" value="3" min="1" max="8" onchange="onSizeChange()" />
+    <span class="size-sep">&times;</span>
+    <label>Cols</label>
+    <input type="number" id="inp-cols" value="3" min="1" max="8" onchange="onSizeChange()" />
+    <span class="size-hint">max 8 &times; 8</span>
+  </div>
+
+  <!-- ── Action buttons ── -->
+  <div class="action-area">
+
+    <!-- Row 1: primary actions -->
+    <div class="action-row-primary">
+
+      <!-- Calculate -->
+      <button class="btn-action btn-calculate" id="btn-calc" onclick="calculate()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/>
+          <line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/>
+        </svg>
+        Calculate A + B
+      </button>
+
+      <!-- Random — fills both grids with random values -->
+      <button class="btn-action btn-random" onclick="fillRandom()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+          <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+        </svg>
+        Random
+      </button>
+
+    </div>
+
+    <!-- Row 2: utility actions — visible only after a calculation -->
+    <div class="action-row-utility" id="action-row-utility">
+
+      <!-- Copy result matrix to clipboard -->
+      <button class="btn-action btn-util btn-copy" onclick="copyResult()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        Copy Result
+      </button>
+
+      <!-- Download plain-text report -->
+      <button class="btn-action btn-util btn-txt" onclick="downloadTXT()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        Save TXT
+      </button>
+
+      <!-- Generate & print PDF -->
+      <button class="btn-action btn-util btn-pdf" onclick="exportPDF()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <path d="M9 13h1a2 2 0 0 0 0-4H9v6"/><path d="M14 13h2"/><path d="M14 16h1"/>
+        </svg>
+        Export PDF
+      </button>
+
+      <!-- Reset all grids -->
+      <button class="btn-action btn-util btn-reset" onclick="resetAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/>
+        </svg>
+        Reset
+      </button>
+
+    </div>
+
+  </div>
+
+  <!-- The three matrix grids: A + B = R -->
+  <div class="matrices-area" id="matrices-area"></div>
+
+  <div class="info-row">
+    <span class="info-pill" id="info-size">3 &times; 3</span>
+    <span class="info-pill">Both matrices must match in size</span>
+  </div>
+
+  <!-- ── Step-by-step viewer (unchanged) ── -->
+  <section id="steps-section" aria-label="Step-by-step solution">
+    <div class="steps-header">
+      <div class="steps-header-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+      </div>
+      <div class="steps-header-text">
+        <h2>Step-by-Step Solution</h2>
+        <p id="steps-desc">Showing how each element was computed</p>
+      </div>
+    </div>
+    <div class="phase-label">
+      <div class="phase-num">1</div>
+      <span class="phase-title">Cell-by-Cell Breakdown</span>
+      <span class="phase-sub">— add each matching pair of elements</span>
+    </div>
+    <div class="step-grid" id="step-grid"></div>
+    <div class="phase-label">
+      <div class="phase-num">2</div>
+      <span class="phase-title">Row-by-Row Summary</span>
+      <span class="phase-sub">— every operation listed in order</span>
+    </div>
+    <div class="steps-table-wrap">
+      <table class="steps-table">
+        <thead><tr><th>Position</th><th>Operation</th><th>Plain form</th></tr></thead>
+        <tbody id="steps-tbody"></tbody>
+      </table>
+    </div>
+    <div class="phase-label">
+      <div class="phase-num">3</div>
+      <span class="phase-title">Final Result Matrix R</span>
+      <span class="phase-sub">— the complete answer</span>
+    </div>
+    <div class="result-panel">
+      <div class="result-panel-header">
+        <div class="result-panel-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="result-panel-title">
+          <h3>Result Matrix R</h3>
+          <p id="result-panel-subtitle">A + B = R</p>
+        </div>
+        <div class="result-badge-wrap">
+          <div class="result-verified-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Verified
+          </div>
+        </div>
+      </div>
+      <div class="result-panel-body">
+        <div class="result-matrix-wrap">
+          <div class="result-matrix-title">Result R</div>
+          <div class="result-bracket-wrap">
+            <span class="result-bracket">[</span>
+            <div class="result-grid" id="result-grid"></div>
+            <span class="result-bracket">]</span>
+          </div>
+        </div>
+      </div>
+      <div class="result-panel-footer" id="result-panel-footer"></div>
+    </div>
+  </section>
+
+</main>
+
+
+<!-- History data preloaded from the server for instant first render -->
+<script id="initial-history" type="application/json">{{ history | tojson }}</script>
+
+<!-- ═══════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════ -->
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let rows = 3, cols = 3;
+let dataA, dataB, dataR;
+let history = JSON.parse(document.getElementById('initial-history').textContent) || [];
+
+// User preferences (loaded from localStorage so they persist across sessions)
+const PREFS_KEY = 'matcalc_prefs';
+let prefs = {
+  dark:     false,
+  headers:  true,
+  anim:     true,
+  autosave: true,
+  size:     3,
+};
+
+// Which edit tab is currently open: 'name' | 'email' | 'pw'
+let activeEditTab = 'name';
+
+// Last computation — used by export functions.
+// Populated by renderSteps() and cleared by resetAll().
+let lastSteps  = null;   // 2D array of { label, a, b, sum } objects
+let lastResult = null;   // 2D array of result values
+
+
+// ═══════════════════════════════════════════════════════════════
+// SIDEBAR — toggle collapse
+// ═══════════════════════════════════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+  document.getElementById('main').classList.toggle('collapsed');
+}
+
+/**
+ * Accordion sidebar: only one section open at a time.
+ *
+ * - If the clicked section is CLOSED  → close all others, open this one.
+ * - If the clicked section is already OPEN → close it (toggle off).
+ *
+ * This gives clean accordion behaviour: clicking an already-open header
+ * collapses it; clicking a different header collapses the current one and
+ * opens the new one.
+ */
+const SIDEBAR_SECTIONS = ['profile', 'history', 'settings'];
+
+function toggleSection(name) {
+  const clickedPanel  = document.getElementById('section-' + name);
+  const clickedNavBtn = document.getElementById('nav-'     + name);
+  const isCurrentlyOpen = clickedPanel.classList.contains('open');
+
+  // 1. Close EVERY section first
+  SIDEBAR_SECTIONS.forEach(sec => {
+    const panel  = document.getElementById('section-' + sec);
+    const navBtn = document.getElementById('nav-'     + sec);
+    if (panel)  panel.classList.remove('open');
+    if (navBtn) navBtn.classList.remove('active');
+  });
+
+  // 2. If the clicked section was closed, open it now
+  //    (If it was already open we just closed it above — that is the toggle-off)
+  if (!isCurrentlyOpen) {
+    clickedPanel.classList.add('open');
+    if (clickedNavBtn) clickedNavBtn.classList.add('active');
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// PROFILE — load stats from the server on page load
+// ═══════════════════════════════════════════════════════════════
+async function loadProfileStats() {
+  try {
+    const res  = await fetch('/api/profile');
+    const data = await res.json();
+    if (!data.ok) return;
+    const s = data.stats;
+    document.getElementById('stat-calcs').textContent  = s.total_calculations;
+    document.getElementById('stat-size').textContent   = s.preferred_size;
+    document.getElementById('stat-joined').textContent = s.joined;
+    document.getElementById('stat-active').textContent = s.last_active;
+  } catch (e) { /* silent — stats are non-critical */ }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// PROFILE — edit form
+// ═══════════════════════════════════════════════════════════════
+
+/** Open the edit form and pre-populate with current values. */
+function openEditForm(tab) {
+  // Pre-fill name fields from what's visible on the profile card
+  document.getElementById('ef-fname').value = document.getElementById('profile-display-name').textContent.split(' ')[0] || '';
+  document.getElementById('ef-lname').value = document.getElementById('profile-display-name').textContent.split(' ').slice(1).join(' ') || '';
+  document.getElementById('ef-email-inp').value = document.getElementById('profile-display-email').textContent;
+  // Clear password fields
+  ['ef-cpw','ef-npw','ef-npw2'].forEach(id => document.getElementById(id).value = '');
+  // Clear any previous errors
+  ['ef-name-err','ef-email-err','ef-pw-err'].forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = ''; el.classList.remove('show');
+  });
+  document.getElementById('edit-form').classList.add('open');
+  switchEditTab(tab || 'name');
+  // Scroll the form into view inside the sidebar
+  scrollToEditForm();
+}
+
+function closeEditForm() {
+  document.getElementById('edit-form').classList.remove('open');
+}
+
+/**
+ * After opening the edit form, scroll the sidebar-nav so the form
+ * is visible. Without this, the form can open below the viewport.
+ */
+function scrollToEditForm() {
+  const nav = document.querySelector('.sidebar-nav');
+  const form = document.getElementById('edit-form');
+  if (!nav || !form) return;
+  // Small delay so the form has rendered before we measure its position
+  setTimeout(() => {
+    const navRect  = nav.getBoundingClientRect();
+    const formRect = form.getBoundingClientRect();
+    if (formRect.bottom > navRect.bottom) {
+      nav.scrollBy({ top: formRect.bottom - navRect.bottom + 16, behavior: 'smooth' });
+    }
+  }, 80);
+}
+
+/** Switch between Name / Email / Password tabs inside the edit form. */
+function switchEditTab(tab) {
+  activeEditTab = tab;
+  // Update tab button styles
+  ['name','email','pw'].forEach(t => {
+    document.getElementById('etab-' + t).classList.toggle('active', t === tab);
+  });
+  // Show/hide field groups
+  document.getElementById('ef-name').style.display  = tab === 'name'  ? 'flex' : 'none';
+  document.getElementById('ef-email').style.display = tab === 'email' ? 'flex' : 'none';
+  document.getElementById('ef-pw').style.display    = tab === 'pw'    ? 'flex' : 'none';
+}
+
+/** Called when the Save button is clicked. Dispatches to the right action. */
+async function saveProfileEdit() {
+  const btn = document.getElementById('ef-save-btn');
+  btn.disabled = true;
+
+  try {
+    if (activeEditTab === 'name')  await saveNameEdit();
+    if (activeEditTab === 'email') await saveEmailEdit();
+    if (activeEditTab === 'pw')    await savePasswordEdit();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function saveNameEdit() {
+  const first = document.getElementById('ef-fname').value.trim();
+  const last  = document.getElementById('ef-lname').value.trim();
+  const errEl = document.getElementById('ef-name-err');
+
+  if (!first || !last) {
+    showFieldError(errEl, 'Both first and last name are required.');
+    return;
+  }
+  const res  = await fetch('/api/profile', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'name', first_name:first, last_name:last}) });
+  const data = await res.json();
+  if (!data.ok) { showFieldError(errEl, data.error); return; }
+  // Update displayed name in profile + page header
+  document.getElementById('profile-display-name').textContent = data.user_name;
+  document.getElementById('header-welcome').textContent = 'Welcome, ' + data.user_name;
+  // Recompute initials
+  const parts = data.user_name.split(' ');
+  const initials = parts.length >= 2 ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase() : parts[0][0].toUpperCase();
+  document.getElementById('profile-avatar-initials').textContent = initials;
+  closeEditForm();
+  showToast('Name updated!', 'success');
+}
+
+async function saveEmailEdit() {
+  const email = document.getElementById('ef-email-inp').value.trim();
+  const errEl = document.getElementById('ef-email-err');
+  if (!email) { showFieldError(errEl, 'Please enter an email address.'); return; }
+  const res  = await fetch('/api/profile', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'email', email}) });
+  const data = await res.json();
+  if (!data.ok) { showFieldError(errEl, data.error); return; }
+  document.getElementById('profile-display-email').textContent = data.email;
+  closeEditForm();
+  showToast('Email updated!', 'success');
+}
+
+async function savePasswordEdit() {
+  const cur  = document.getElementById('ef-cpw').value;
+  const np   = document.getElementById('ef-npw').value;
+  const np2  = document.getElementById('ef-npw2').value;
+  const errEl = document.getElementById('ef-pw-err');
+
+  if (!cur || !np || !np2) { showFieldError(errEl, 'All three password fields are required.'); return; }
+  if (np !== np2) { showFieldError(errEl, 'New passwords do not match.'); return; }
+  if (np.length < 8) { showFieldError(errEl, 'New password must be at least 8 characters.'); return; }
+
+  const res  = await fetch('/api/profile', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'password', current_password:cur, new_password:np, confirm_password:np2}) });
+  const data = await res.json();
+  if (!data.ok) { showFieldError(errEl, data.error); return; }
+  closeEditForm();
+  showToast('Password changed!', 'success');
+}
+
+function showFieldError(el, msg) {
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// PREFERENCES — read/write localStorage and apply to DOM
+// ═══════════════════════════════════════════════════════════════
+
+function loadPrefs() {
+  try {
+    const saved = localStorage.getItem(PREFS_KEY);
+    if (saved) prefs = { ...prefs, ...JSON.parse(saved) };
+  } catch (e) { /* localStorage unavailable — use defaults */ }
+  applyPrefs();
+}
+
+function savePrefs() {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {}
+}
+
+/** Apply current prefs state to the DOM. Called on load and after each toggle. */
+function applyPrefs() {
+  // Dark mode
+  document.documentElement.setAttribute('data-theme', prefs.dark ? 'dark' : 'light');
+  syncToggleUI('pref-dark',     prefs.dark);
+  syncToggleUI('pref-headers',  prefs.headers);
+  syncToggleUI('pref-anim',     prefs.anim);
+  syncToggleUI('pref-autosave', prefs.autosave);
+  document.getElementById('pref-size').value = String(prefs.size);
+}
+
+function syncToggleUI(id, on) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('on', on);
+}
+
+/** Called by each preference toggle button. */
+function togglePref(key, btn) {
+  prefs[key] = !prefs[key];
+  btn.classList.toggle('on', prefs[key]);
+  savePrefs();
+  // Special side-effects
+  if (key === 'dark') {
+    document.documentElement.setAttribute('data-theme', prefs.dark ? 'dark' : 'light');
+  }
+}
+
+function applyDefaultSize(val) {
+  prefs.size = parseInt(val);
+  savePrefs();
+  // Actually resize the grids
+  rows = prefs.size; cols = prefs.size;
+  document.getElementById('inp-rows').value = rows;
+  document.getElementById('inp-cols').value = cols;
+  dataA = emptyMatrix(rows, cols);
+  dataB = emptyMatrix(rows, cols);
+  dataR = emptyMatrix(rows, cols);
+  render();
+  hideSteps();
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// MATRIX HELPERS
+// ═══════════════════════════════════════════════════════════════
+function emptyMatrix(r, c) {
+  return Array.from({length:r}, () => Array(c).fill(0));
+}
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+function readMatrixFromInputs(prefix) {
+  const matrix = [];
+  for (let r = 0; r < rows; r++) {
+    const row = [];
+    for (let c = 0; c < cols; c++) {
+      const el = document.getElementById(prefix + '-' + r + '-' + c);
+      row.push(el ? el.value : '');
+    }
+    matrix.push(row);
+  }
+  return matrix;
+}
+
+/**
+ * Build one matrix <table>.
+ * @param {string}  prefix    'a', 'b', or 'r'
+ * @param {Array}   data      2D array of values
+ * @param {boolean} readOnly  true for the result matrix
+ */
+function buildTable(prefix, data, readOnly) {
+  const tbl = document.createElement('table');
+  // Apply colour-coded class to the table itself
+  tbl.className = 'mat-table' + (readOnly ? '' : ' tbl-' + prefix);
+
+  if (prefs.headers) {
+    const hrow = document.createElement('tr');
+    hrow.innerHTML = '<th></th>';
+    for (let c = 0; c < cols; c++) hrow.innerHTML += '<th>C' + (c+1) + '</th>';
+    tbl.appendChild(hrow);
+  }
+
+  for (let r = 0; r < rows; r++) {
+    const tr = document.createElement('tr');
+    if (prefs.headers) {
+      const th = document.createElement('th');
+      th.textContent = 'R' + (r+1);
+      tr.appendChild(th);
+    }
+    for (let c = 0; c < cols; c++) {
+      const td  = document.createElement('td');
+      const inp = document.createElement('input');
+      inp.type  = 'text';
+      inp.id    = prefix + '-' + r + '-' + c;
+      const v   = data[r][c];
+      inp.value = Number.isInteger(v) ? String(v) : v;
+      if (readOnly) {
+        inp.readOnly = true; inp.tabIndex = -1; inp.className = 'result-inp';
+      }
+      td.appendChild(inp); tr.appendChild(td);
+    }
+    tbl.appendChild(tr);
+  }
+  return tbl;
+}
+
+function render() {
+  const area = document.getElementById('matrices-area');
+  area.innerHTML = '';
+  [
+    {prefix:'a', label:'Matrix A', data:dataA, readOnly:false},
+    {sym:'+'},
+    {prefix:'b', label:'Matrix B', data:dataB, readOnly:false},
+    {sym:'='},
+    {prefix:'r', label:'Result R',  data:dataR, readOnly:true},
+  ].forEach(p => {
+    if (p.sym) {
+      const d = document.createElement('div');
+      d.className = 'mat-op'; d.textContent = p.sym;
+      area.appendChild(d); return;
+    }
+    const block = document.createElement('div'); block.className = 'mat-block';
+    const lbl   = document.createElement('div');
+    lbl.className = 'mat-label ' + p.prefix;
+    lbl.textContent = p.label;
+    const bwrap = document.createElement('div'); bwrap.className = 'bracket-wrap';
+    const bl = document.createElement('span'); bl.className = 'bracket ' + p.prefix; bl.textContent = '[';
+    const br = document.createElement('span'); br.className = 'bracket ' + p.prefix; br.textContent = ']';
+    bwrap.appendChild(bl);
+    bwrap.appendChild(buildTable(p.prefix, p.data, p.readOnly));
+    bwrap.appendChild(br);
+    block.appendChild(lbl); block.appendChild(bwrap);
+    area.appendChild(block);
+  });
+  document.getElementById('info-size').textContent = rows + ' \xd7 ' + cols;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// FORMAT HELPERS
+// ═══════════════════════════════════════════════════════════════
+function fmtNum(v) {
+  const n = parseFloat(v);
+  if (isNaN(n)) return '0';
+  return Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(4)));
+}
+
+/* buildHistoryMatrix and buildEquationRows removed — matrix display
+   now happens in the main content area, not the sidebar. */
+
+function formatDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString([], {month:'short', day:'numeric'}) + ' · ' +
+         d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// HISTORY — render, load, delete, clear
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Render history as a compact list of clickable single-line rows.
+ *
+ * Each row shows: #N badge · size · timestamp · delete icon.
+ * Clicking a row calls loadEntry() which restores A, B, Result AND
+ * re-runs the step-by-step solution in the main content area.
+ * The delete icon removes the entry without loading it.
+ *
+ * No expand/collapse — the sidebar stays slim and the detail is
+ * shown in the main area where there is room for it.
+ */
+function renderHistory() {
+  const list     = document.getElementById('history-list');
+  const emptyEl  = document.getElementById('history-empty');
+  const clearBtn = document.getElementById('btn-clear-all');
+
+  list.querySelectorAll('.hcard').forEach(c => c.remove());
+
+  const countNum = document.getElementById('history-count-num');
+  if (countNum) countNum.textContent = history.length;
+
+  if (history.length === 0) {
+    emptyEl.style.display  = '';
+    clearBtn.style.display = 'none';
+    return;
+  }
+  emptyEl.style.display  = 'none';
+  clearBtn.style.display = '';
+
+  history.forEach((entry, idx) => {
+    const row = document.createElement('div');
+    row.className  = 'hcard';
+    row.dataset.id = String(entry.id);
+    row.title      = 'Click to load this calculation';
+
+    const numLabel = '#' + (history.length - idx);
+    const sizeStr  = entry.rows + '\xd7' + entry.cols;
+
+    row.innerHTML =
+      '<div class="hcard-meta">' +
+        '<span class="hcard-num">'  + numLabel + '</span>' +
+        '<span class="hcard-size">' + sizeStr  + '</span>' +
+        '<span class="hcard-time">' + formatDateTime(entry.created_at) + '</span>' +
+      '</div>' +
+      '<button class="hcard-del" title="Delete this calculation">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+          '<polyline points="3 6 5 6 21 6"/>' +
+          '<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>' +
+          '<path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>' +
+        '</svg>' +
+      '</button>';
+
+    // Clicking anywhere on the row (except the delete button) loads the entry
+    row.addEventListener('click', function(e) {
+      if (e.target.closest('.hcard-del')) return;
+      loadEntry(entry);
+    });
+
+    // Delete button
+    row.querySelector('.hcard-del').addEventListener('click', function(e) {
+      e.stopPropagation();
+      deleteEntry(e, entry.id);
+    });
+
+    list.appendChild(row);
+  });
+}
+
+/**
+ * Load a history entry into the main calculator area.
+ *
+ * Steps:
+ *  1. Restore matrix dimensions and the three data arrays.
+ *  2. Re-render the matrix input grids with the saved values.
+ *  3. Re-build and show the step-by-step solution (server-side
+ *     build_steps is deterministic from A+B, so we call /api/calculate
+ *     with the stored values to get steps back cleanly).
+ *  4. Mark the active row in the sidebar history list.
+ *
+ * @param {Object} entry  A history object from the `history` array.
+ */
+async function loadEntry(entry) {
+  // ── 1. Restore state ──────────────────────────────────────
+  rows  = entry.rows;
+  cols  = entry.cols;
+  dataA = JSON.parse(JSON.stringify(entry.matrix_a));
+  dataB = JSON.parse(JSON.stringify(entry.matrix_b));
+  dataR = JSON.parse(JSON.stringify(entry.result));
+
+  document.getElementById('inp-rows').value = rows;
+  document.getElementById('inp-cols').value = cols;
+
+  // ── 2. Render the input grids ──────────────────────────────
+  render();
+
+  // ── 3. Mark active row in the sidebar ─────────────────────
+  document.querySelectorAll('.hcard').forEach(c => c.classList.remove('loaded'));
+  const activeRow = document.querySelector('.hcard[data-id="' + entry.id + '"]');
+  if (activeRow) activeRow.classList.add('loaded');
+
+  // ── 4. Re-build steps and show the solution viewer ───────────
+  //
+  // IMPORTANT: we call /api/steps (NOT /api/calculate) here.
+  // /api/steps computes the step-by-step breakdown without saving
+  // a new database row — so loading a history entry never creates
+  // a duplicate record.  /api/calculate always saves to the DB and
+  // is only called when the user explicitly clicks "Calculate A + B".
+  try {
+    const btn = document.getElementById('btn-calc');
+    btn.disabled    = true;
+    btn.textContent = 'Loading…';
+    hideSteps();
+
+    const response = await fetch('/api/steps', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({
+        matrix_a: entry.matrix_a,
+        matrix_b: entry.matrix_b,
+      }),
+    });
+    const result = await response.json();
+
+    if (result.ok) {
+      renderSteps(result.steps, result.result);
+      showToast('Calculation loaded!', 'success');
+    } else {
+      showToast('Grids loaded (steps unavailable)', 'success');
+    }
+  } catch (err) {
+    showToast('Grids loaded (offline)', 'success');
+  } finally {
+    const btn = document.getElementById('btn-calc');
+    btn.disabled    = false;
+    btn.textContent = 'Calculate A + B';
+  }
+}
+
+async function deleteEntry(event, id) {
+  event.stopPropagation();
+  if (!confirm('Delete this calculation?')) return;
+  try {
+    const res  = await fetch('/api/history/' + id, {method:'DELETE'});
+    const data = await res.json();
+    if (data.ok) {
+      history = history.filter(h => h.id !== id);
+      renderHistory();
+      loadProfileStats(); // refresh stat counter
+      showToast('Calculation deleted', 'success');
+    } else {
+      showToast(data.error || 'Failed to delete', 'error');
+    }
+  } catch { showToast('Network error', 'error'); }
+}
+
+async function clearHistory() {
+  if (!confirm('Clear ALL history? This cannot be undone.')) return;
+  try {
+    const res  = await fetch('/api/history', {method:'DELETE'});
+    const data = await res.json();
+    if (data.ok) {
+      history = [];
+      renderHistory();
+      loadProfileStats();
+      showToast('History cleared', 'success');
+    }
+  } catch { showToast('Network error', 'error'); }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════
+function showToast(msg, type) {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + (type || '');
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// STEP-BY-STEP RENDERER (unchanged logic — same as before)
+// ═══════════════════════════════════════════════════════════════
+function renderSteps(steps, result) {
+  const totalRows  = steps.length;
+  const totalCols  = steps[0].length;
+  const totalCells = totalRows * totalCols;
+
+  const animDelay = prefs.anim ? 60 : 0; // respect animations pref
+
+  // Phase 1: card grid
+  const grid = document.getElementById('step-grid');
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = 'repeat(' + totalCols + ', 1fr)';
+  let idx = 0;
+  steps.forEach(rowArr => {
+    rowArr.forEach(cell => {
+      const card = document.createElement('div');
+      card.className = 'step-cell';
+      card.innerHTML =
+        '<div class="step-cell-pos">' + cell.label + '</div>' +
+        '<div class="step-cell-eq">' +
+          '<span class="step-val-a">'   + fmtNum(cell.a)   + '</span>' +
+          '<span class="step-op">+</span>' +
+          '<span class="step-val-b">'   + fmtNum(cell.b)   + '</span>' +
+          '<span class="step-eq-sign">=</span>' +
+          '<span class="step-val-sum">' + fmtNum(cell.sum) + '</span>' +
+        '</div>' +
+        '<div class="step-cell-bar"></div>';
+      grid.appendChild(card);
+      setTimeout(() => card.classList.add('shown'), idx * animDelay + 50);
+      idx++;
+    });
+  });
+
+  // Phase 2: summary table
+  const tbody = document.getElementById('steps-tbody');
+  tbody.innerHTML = '';
+  let rowNum = 0;
+  steps.forEach(rowArr => {
+    rowArr.forEach(cell => {
+      const tr = document.createElement('tr');
+      tr.style.animationDelay = (rowNum * (prefs.anim ? 40 : 0)) + 'ms';
+      tr.innerHTML =
+        '<td><span class="pos-badge">' + cell.label + '</span></td>' +
+        '<td><div class="td-eq">' +
+          '<span style="font-size:.65rem;color:var(--muted)">A:</span>' +
+          '<span class="eq-chip a">'   + fmtNum(cell.a)   + '</span>' +
+          '<span class="eq-text-op">+</span>' +
+          '<span style="font-size:.65rem;color:var(--muted)">B:</span>' +
+          '<span class="eq-chip b">'   + fmtNum(cell.b)   + '</span>' +
+          '<span class="eq-text-op">=</span>' +
+          '<span style="font-size:.65rem;color:var(--muted)">R:</span>' +
+          '<span class="eq-chip sum">' + fmtNum(cell.sum) + '</span>' +
+        '</div></td>' +
+        '<td class="td-note">' + fmtNum(cell.a) + ' + ' + fmtNum(cell.b) + ' = ' + fmtNum(cell.sum) + '</td>';
+      tbody.appendChild(tr);
+      rowNum++;
+    });
+  });
+
+  // Phase 3: result panel
+  const resultGrid = document.getElementById('result-grid');
+  resultGrid.innerHTML = '';
+  resultGrid.style.gridTemplateColumns = 'repeat(' + totalCols + ', 60px)';
+  document.getElementById('result-panel-subtitle').textContent =
+    totalRows + '×' + totalCols + ' matrix · ' + totalCells + ' elements';
+  let ci = 0;
+  result.forEach(rowArr => {
+    rowArr.forEach(val => {
+      const cell = document.createElement('div');
+      cell.className = 'result-cell';
+      cell.textContent = fmtNum(val);
+      resultGrid.appendChild(cell);
+      setTimeout(() => cell.classList.add('shown'), ci * (prefs.anim ? 55 : 0) + 300);
+      ci++;
+    });
+  });
+
+  // Footer stats
+  let totalSum = 0, maxVal = result[0][0];
+  result.forEach(row => row.forEach(v => { totalSum += v; if (v > maxVal) maxVal = v; }));
+  document.getElementById('result-panel-footer').innerHTML =
+    '<div class="result-stat"><span class="result-stat-value">' + totalRows + ' × ' + totalCols + '</span><span class="result-stat-label">Dimensions</span></div>' +
+    '<div class="result-stat-divider"></div>' +
+    '<div class="result-stat"><span class="result-stat-value">' + totalCells + '</span><span class="result-stat-label">Elements</span></div>' +
+    '<div class="result-stat-divider"></div>' +
+    '<div class="result-stat"><span class="result-stat-value">' + fmtNum(totalSum) + '</span><span class="result-stat-label">Element Sum</span></div>' +
+    '<div class="result-stat-divider"></div>' +
+    '<div class="result-stat"><span class="result-stat-value">' + fmtNum(maxVal) + '</span><span class="result-stat-label">Max Value</span></div>';
+
+  document.getElementById('steps-desc').textContent =
+    totalRows + '×' + totalCols + ' · ' + totalCells + ' addition operations';
+
+  const section = document.getElementById('steps-section');
+  section.classList.add('visible');
+  setTimeout(() => section.scrollIntoView({behavior:'smooth', block:'start'}), 120);
+
+  // Save for export functions and reveal the utility action bar
+  lastSteps  = steps;
+  lastResult = result;
+  document.getElementById('action-row-utility').classList.add('visible');
+}
+
+function hideSteps() {
+  document.getElementById('steps-section').classList.remove('visible');
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// CALCULATE
+// ═══════════════════════════════════════════════════════════════
+async function calculate() {
+  const btn = document.getElementById('btn-calc');
+  btn.disabled = true; btn.textContent = 'Calculating...';
+  hideSteps();
+
+  try {
+    const response = await fetch('/api/calculate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        matrix_a: readMatrixFromInputs('a'),
+        matrix_b: readMatrixFromInputs('b'),
+      }),
+    });
+    const result = await response.json();
+
+    if (result.ok) {
+      dataR = result.result;
+      render();
+      renderSteps(result.steps, result.result);
+
+      // Only add to history if auto-save is on (or always add to DB — just
+      // don't show it locally if the pref is off). The backend always saves;
+      // we control the sidebar display here.
+      if (prefs.autosave) {
+        history.unshift(result.entry);
+        if (history.length > 20) history.pop();
+        renderHistory();
+        loadProfileStats(); // update the calculations counter
+      }
+
+      // Auto-open history sidebar
+      const histPanel = document.getElementById('section-history');
+      if (prefs.autosave && !histPanel.classList.contains('open')) toggleSection('history');
+
+      showToast('Calculation saved!', 'success');
+    } else {
+      showToast(result.error || 'Calculation failed', 'error');
+    }
+  } catch (err) {
+    showToast('Network error: could not reach server', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Calculate A + B';
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// RESET / RESIZE
+// ═══════════════════════════════════════════════════════════════
+function resetAll() {
+  dataA = emptyMatrix(rows, cols);
+  dataB = emptyMatrix(rows, cols);
+  dataR = emptyMatrix(rows, cols);
+  render();
+  hideSteps();
+  lastSteps  = null;
+  lastResult = null;
+  document.getElementById('action-row-utility').classList.remove('visible');
+}
+
+function onSizeChange() {
+  const nr = clamp(parseInt(document.getElementById('inp-rows').value) || 1, 1, 8);
+  const nc = clamp(parseInt(document.getElementById('inp-cols').value) || 1, 1, 8);
+  rows = nr; cols = nc;
+  document.getElementById('inp-rows').value = rows;
+  document.getElementById('inp-cols').value = cols;
+  dataA = emptyMatrix(rows, cols);
+  dataB = emptyMatrix(rows, cols);
+  dataR = emptyMatrix(rows, cols);
+  render(); hideSteps();
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// RANDOM MATRIX FILL
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Fill Matrix A and Matrix B with random integers in [-9, 9].
+ * Each cell gets a brief gold-flash animation so the fill feels alive.
+ * After filling, automatically calculates the result.
+ */
+function fillRandom() {
+  // Generate two random matrices matching the current grid size
+  function randomMatrix() {
+    return Array.from({length: rows}, () =>
+      Array.from({length: cols}, () => Math.floor(Math.random() * 19) - 9)
+    );
+  }
+
+  dataA = randomMatrix();
+  dataB = randomMatrix();
+  dataR = emptyMatrix(rows, cols);
+
+  // Write values into the existing input elements (no full DOM rebuild)
+  // This lets us animate individual cells rather than replacing everything.
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const inpA = document.getElementById('a-' + r + '-' + c);
+      const inpB = document.getElementById('b-' + r + '-' + c);
+      if (inpA) {
+        inpA.value = dataA[r][c];
+        triggerCellFlash(inpA, r * cols + c);
+      }
+      if (inpB) {
+        inpB.value = dataB[r][c];
+        triggerCellFlash(inpB, r * cols + c + (rows * cols));
+      }
+    }
+  }
+
+  // Auto-calculate after a short delay so the flash animation is visible first
+  setTimeout(calculate, 160);
+}
+
+/**
+ * Apply the gold-flash CSS animation to one cell, staggered by its index.
+ * The animation is defined in CSS as @keyframes cellFlash.
+ * @param {HTMLElement} el     The input element to flash.
+ * @param {number}      index  Used to stagger the delay (0-based).
+ */
+function triggerCellFlash(el, index) {
+  // Remove any existing animation so re-randomising triggers it again
+  el.classList.remove('flashing');
+  // Force reflow to restart the animation
+  void el.offsetWidth;
+  el.style.animationDelay = (index * 18) + 'ms';
+  el.classList.add('flashing');
+  // Clean up the class once done so it can fire again
+  el.addEventListener('animationend', () => el.classList.remove('flashing'), {once: true});
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORT — helpers shared by all export formats
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Format a 2D matrix as aligned plain text rows.
+ *   [ 1  2  3 ]
+ *   [ 4  5  6 ]
+ */
+function matrixToText(matrix) {
+  if (!matrix || matrix.length === 0) return '(empty)';
+  // Find the widest value string so we can right-pad for alignment
+  const vals = matrix.flat().map(v => fmtNum(v));
+  const maxW = Math.max(...vals.map(s => s.length));
+  return matrix.map(row =>
+    '[ ' + row.map(v => fmtNum(v).padStart(maxW)).join('  ') + ' ]'
+  ).join('\n');
+}
+
+/**
+ * Build a plain-text step-by-step breakdown from the steps array.
+ * Each line: "R1 C1:  1 + 5 = 6"
+ */
+function stepsToText(steps) {
+  if (!steps) return '(no steps available)';
+  const lines = [];
+  steps.forEach(rowArr => {
+    rowArr.forEach(cell => {
+      lines.push(cell.label + ':  ' + fmtNum(cell.a) + ' + ' + fmtNum(cell.b) + ' = ' + fmtNum(cell.sum));
+    });
+  });
+  return lines.join('\n');
+}
+
+/** Friendly timestamp: "May 12, 2026 at 10:30 PM" */
+function nowString() {
+  return new Date().toLocaleString([], {
+    year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// COPY RESULT MATRIX
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Copy the result matrix to the clipboard as formatted text.
+ * Shows a success toast on completion.
+ */
+async function copyResult() {
+  if (!lastResult) {
+    showToast('Calculate first to get a result.', 'error');
+    return;
+  }
+
+  const text = matrixToText(lastResult);
+
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Result matrix copied to clipboard!', 'success');
+  } catch (err) {
+    // Fallback for browsers that block the Clipboard API
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      showToast('Result matrix copied!', 'success');
+    } catch (e) {
+      showToast('Copy failed — please copy manually.', 'error');
+    } finally {
+      ta.remove();
+    }
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// DOWNLOAD AS TXT
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Build and download a formatted .txt report containing:
+ *   - Generated timestamp
+ *   - Matrix A, B, Result
+ *   - Step-by-step breakdown
+ */
+function downloadTXT() {
+  if (!lastResult) {
+    showToast('Calculate first to generate a report.', 'error');
+    return;
+  }
+
+  const divider = '═'.repeat(44);
+  const thin    = '─'.repeat(44);
+
+  const lines = [
+    divider,
+    '  MATRIX ADDITION CALCULATION',
+    '  Generated: ' + nowString(),
+    '  Size: ' + rows + ' × ' + cols,
+    divider,
+    '',
+    'MATRIX A',
+    thin,
+    matrixToText(dataA),
+    '',
+    'MATRIX B',
+    thin,
+    matrixToText(dataB),
+    '',
+    'RESULT  (A + B)',
+    thin,
+    matrixToText(lastResult),
+    '',
+    divider,
+    'STEP-BY-STEP BREAKDOWN',
+    divider,
+    stepsToText(lastSteps),
+    '',
+    divider,
+    '  Matrix Addition Calculator  ·  SAMPER, DIAMZON, AGATON',
+    divider,
+  ];
+
+  const blob = new Blob([lines.join('\n')], {type: 'text/plain'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'matrix-result-' + Date.now() + '.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('TXT report downloaded!', 'success');
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORT AS PDF — preview tab + html2pdf.js download
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * exportPDF()
+ *
+ * Key lessons from debugging:
+ *  - flex/inline-block children shrink-wrap to content in the new tab,
+ *    leaving blank space on the right of the PDF.
+ *  - HTML <table> is the only reliable way to lay out the A+B=R row
+ *    because table cells stretch to fill their column widths regardless
+ *    of viewport or window size.
+ *  - All style="" values must be single-line strings (no \n inside).
+ *  - windowWidth must match report width exactly (680px).
+ *  - No CSS variables, no backdrop-filter, no quotes in font-family.
+ */
+function exportPDF() {
+  if (!lastResult) {
+    showToast('Calculate first before exporting PDF.', 'error');
+    return;
+  }
+
+  var A     = JSON.parse(JSON.stringify(dataA));
+  var B     = JSON.parse(JSON.stringify(dataB));
+  var R     = JSON.parse(JSON.stringify(lastResult));
+  var steps = JSON.parse(JSON.stringify(lastSteps || []));
+  var nRows = rows, nCols = cols;
+  var date  = nowString();
+  var fname = 'matrix-addition-report-' + new Date().toISOString().slice(0,10) + '.pdf';
+  var ops   = nRows * nCols;
+
+  // ── Matrix cell ───────────────────────────────────────────────
+  function td(v, bg, bdr, color) {
+    return '<td style="padding:7px 11px;border:1.5px solid ' + bdr + ';background-color:' + bg + ';color:' + color + ';font-weight:700;text-align:center;min-width:32px;font-size:14px;font-family:Courier New,Courier,monospace;">' + fmtNum(v) + '</td>';
+  }
+
+  // ── Matrix table ──────────────────────────────────────────────
+function mtbl(matrix, bg, bdr, color) {
+  return '<table style="border-collapse:collapse;">' +
+    matrix.map(function(row) {
+      return '<tr>' +
+        row.map(function(v) {
+          return '<td style="padding:8px 12px;border:1.5px solid ' + bdr + ';background-color:' + bg + ';color:' + color + ';font-weight:700;text-align:center;min-width:36px;font-size:14px;font-family:Courier New,Courier,monospace;">' 
+            + fmtNum(v) +
+          '</td>';
+        }).join('') +
+      '</tr>';
+    }).join('') +
+  '</table>';
+}
+
+  // ── Step card ─────────────────────────────────────────────────
+  function stepCard(c) {
+    return '<div style="border:1px solid #e0e0d8;border-radius:5px;padding:8px 10px;background-color:#f8f8f6;">'
+      + '<div style="font-size:8px;letter-spacing:1px;text-transform:uppercase;color:#aaaaaa;margin-bottom:5px;font-family:Courier New,Courier,monospace;">' + c.label + '</div>'
+      + '<div style="display:flex;align-items:center;gap:4px;font-size:13px;font-weight:700;font-family:Courier New,Courier,monospace;">'
+      +   '<span style="color:#185FA5;">'  + fmtNum(c.a)   + '</span>'
+      +   '<span style="color:#bbbbbb;font-weight:400;">+</span>'
+      +   '<span style="color:#2d5a0e;">'  + fmtNum(c.b)   + '</span>'
+      +   '<span style="color:#bbbbbb;font-weight:400;">=</span>'
+      +   '<span style="color:#8b1a1a;">'  + fmtNum(c.sum) + '</span>'
+      + '</div>'
+      + '</div>';
+  }
+
+  // ── Section label ─────────────────────────────────────────────
+  function sec(text) {
+    return '<div style="font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#999999;padding-bottom:7px;border-bottom:1px solid #e0e0d8;margin-bottom:14px;font-family:Courier New,Courier,monospace;">' + text + '</div>';
+  }
+
+  var stepCards = steps.flat().map(stepCard).join('');
+
+  // ── Matrix section built with <table> not flex ────────────────
+  // A table cell stretches to fill its column — unlike inline-block/flex
+  // which shrinks to content width in the new tab's rendering context.
+  // Each matrix gets its own <td>; operator symbols are narrow <td>s.
+  var matrixRow =
+    '<table style="border-collapse:collapse;width:100%;">'
+    + '<tr>'
+    // Matrix A
+    + '<td style="text-align:center;vertical-align:top;padding:0 8px 0 0;">'
+    +   '<div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#185FA5;margin-bottom:6px;font-family:Courier New,Courier,monospace;">Matrix A</div>'
+    +   mtbl(A, '#ddeaf8', '#96bfdf', '#185FA5')
+    + '</td>'
+    // + operator
+    + '<td style="text-align:center;vertical-align:middle;padding:0 4px;font-size:22px;font-weight:300;color:#cccccc;white-space:nowrap;">+</td>'
+    // Matrix B
+    + '<td style="text-align:center;vertical-align:top;padding:0 8px;">'
+    +   '<div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#2d5a0e;margin-bottom:6px;font-family:Courier New,Courier,monospace;">Matrix B</div>'
+    +   mtbl(B, '#daf0d3', '#8ec87e', '#2d5a0e')
+    + '</td>'
+    // = operator
+    + '<td style="text-align:center;vertical-align:middle;padding:0 4px;font-size:22px;font-weight:300;color:#cccccc;white-space:nowrap;">=</td>'
+    // Result R
+// Result R
++ '<td style="text-align:center;vertical-align:top;padding:0 0 0 8px;">'
++   '<div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#8b1a1a;margin-bottom:6px;font-family:Courier New,Courier,monospace;">Result R</div>'
++   '<div style="background-color:#fdeaea;border:2px solid #e89898;border-radius:5px;padding:8px 10px;">'
++     mtbl(R, '#fff5f5', '#cc4444', '#8b1a1a')
++   '</div>'
++ '</td>'
++ '</tr>'
++ '</table>'
++ '</div>'
+
+  // ── Full preview page ─────────────────────────────────────────
+  var html = '<!DOCTYPE html>'
+    + '<html lang="en"><head>'
+    + '<meta charset="UTF-8">'
+    + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>Matrix Report — Preview</title>'
+    + '<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>'
+    + '<style>'
+    +   '* { margin:0; padding:0; box-sizing:border-box; }'
+    +   'body { background:#c8c8c4; font-family:Courier New,Courier,monospace; }'
+    +   '#bar { position:fixed;top:0;left:0;right:0;z-index:999;display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:#ffffff;border-bottom:1px solid #d8d8d0;box-shadow:0 2px 8px rgba(0,0,0,0.08); }'
+    +   '#bar-info { font-size:13px;color:#444; }'
+    +   '#bar-info strong { color:#185FA5; }'
+    +   '#bar-info small { display:block;font-size:11px;color:#888;margin-top:2px; }'
+    +   '#save-btn { display:inline-flex;align-items:center;gap:8px;background:#185FA5;color:#fff;border:none;border-radius:8px;padding:10px 22px;cursor:pointer;font-family:Courier New,Courier,monospace;font-size:13px;font-weight:700;box-shadow:0 3px 10px rgba(24,95,165,0.3); }'
+    +   '#save-btn:hover { opacity:0.9; }'
+    +   '#save-btn:disabled { opacity:0.5;cursor:not-allowed; }'
+    +   '#wrap { padding:72px 24px 48px; }'
+    +   '#shadow { width:1200px;margin:0 auto;box-shadow:0 6px 32px rgba(0,0,0,0.15);border-radius:4px;overflow:hidden; }'
+    +   '@keyframes spin { to { transform:rotate(360deg); } }'
+    +   '.spin { display:inline-block;animation:spin 0.9s linear infinite; }'
+    + '</style>'
+    + '</head><body>'
+
+    // Top bar — outside #report, never in PDF
+    + '<div id="bar">'
+    +   '<div id="bar-info"><strong>&#128438; Matrix Addition Report</strong>'
+    +     '<small>' + nRows + '&thinsp;&times;&thinsp;' + nCols + ' matrix &nbsp;&middot;&nbsp; ' + ops + ' ops &nbsp;&middot;&nbsp; ' + date + '</small>'
+    +   '</div>'
+    +   '<button id="save-btn" onclick="savePDF()">'
+    +     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+    +     ' Save PDF'
+    +   '</button>'
+    + '</div>'
+
+    + '<div id="wrap"><div id="shadow">'
+
+    // ══ #report — html2pdf renders this element ══
+    + '<div id="report" style="width:1200px;background-color:#ffffff;color:#111111;font-family:Courier New,Courier,monospace;">'
+
+    // Header
+    + '<div style="display:table;width:100%;padding:20px 28px 16px;background-color:#ffffff;border-bottom:2px solid #111111;">'
+    +   '<div style="display:table-cell;vertical-align:middle;">'
+    +     '<div style="font-size:24px;font-weight:800;line-height:1.1;letter-spacing:-0.5px;">'
+    +       '<span style="color:#185FA5;">Matrix</span>'
+    +       '<span style="color:#2d5a0e;"> Addition</span>'
+    +     '</div>'
+    +     '<div style="font-size:11px;color:#888888;letter-spacing:1px;text-transform:uppercase;margin-top:3px;">Calculation Report</div>'
+    +   '</div>'
+    +   '<div style="display:table-cell;vertical-align:middle;text-align:right;font-size:11px;color:#555555;line-height:1.9;">'
+    +     '<span style="display:block;font-weight:700;color:#111111;">Generated</span>' + date
+    +     '<span style="display:block;font-weight:700;color:#111111;margin-top:4px;">Size</span>' + nRows + ' &times; ' + nCols
+    +     '<span style="display:block;font-weight:700;color:#111111;margin-top:4px;">Operations</span>' + ops
+    +   '</div>'
+    + '</div>'
+
+    // Body
+    + '<div style="padding:18px 28px 22px;background-color:#ffffff;">'
+
+    // Section 1 — matrices (TABLE layout, not flex)
+    + '<div style="margin-bottom:20px;">'
+    +   sec('Section 1 — Matrix Addition &nbsp; A + B = R')
+    +   matrixRow
+    + '</div>'
+
+    // Section 2 — steps
+    + '<div>'
+    +   sec('Section 2 — Step-by-Step Breakdown &nbsp; (' + ops + ' operations)')
+    +   '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;">' + stepCards + '</div>'
+    + '</div>'
+
+    + '</div>' // /body
+
+    // Footer
+    + '<div style="display:table;width:100%;padding:10px 28px;border-top:1px solid #e0e0d8;background-color:#f8f8f6;">'
+    +   '<div style="display:table-cell;font-size:9px;color:#cccccc;font-weight:700;font-family:Courier New,Courier,monospace;">MATRIX ADDITION CALCULATOR</div>'
+    +   '<div style="display:table-cell;text-align:right;font-size:9px;color:#aaaaaa;font-family:Courier New,Courier,monospace;">Generated ' + date + '</div>'
+    + '</div>'
+
+    + '</div>' // /#report
+    + '</div></div>' // /#shadow #wrap
+
+    // savePDF — in preview page, targets #report directly
+    + '<script>'
+    + 'async function savePDF(){'
+    +   'var btn=document.getElementById("save-btn");'
+    +   'btn.disabled=true;'
+    +   'btn.innerHTML="<span class=\\"spin\\">&#8635;</span> Generating&hellip;";'
+    +   'var el=document.getElementById("report");'
+    +   'var opt={'
+    +     'margin:0.4,'
+    +     'filename:"' + fname + '",'
+    +     'image:{type:"jpeg",quality:1},'
+    +     'html2canvas:{scale:1.2, useCORS:true, logging:false,  backgroundColor:"#ffffff", windowWidth:1525,  width:1200, scrollX:0,  scrollY:0},'
+    +     'jsPDF:{unit:"in",format:"a4",orientation:"landscape"},'
+    +     'pagebreak:{mode:["avoid-all","css","legacy"]}'
+    +   '};'
+    +   'try{await html2pdf().set(opt).from(el).save();}'
+    +   'catch(e){alert("PDF failed: "+e.message);}'
+    +   'finally{'
+    +     'btn.disabled=false;'
+    +     'btn.innerHTML="<svg width=\\"15\\" height=\\"15\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2.5\\" stroke-linecap=\\"round\\" stroke-linejoin=\\"round\\"><path d=\\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\\"/><polyline points=\\"7 10 12 15 17 10\\"/><line x1=\\"12\\" y1=\\"15\\" x2=\\"12\\" y2=\\"3\\"/></svg> Save PDF";'
+    +   '}'
+    + '}'
+    + '<\/script>'
+    + '</body></html>';
+
+  var win = window.open('', '_blank');
+  if (!win) {
+    showToast('Pop-up blocked — please allow pop-ups for this site.', 'error');
+    return;
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  showToast('Preview opened — click "Save PDF" to download.', 'success');
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// INIT — runs once on page load
+// ═══════════════════════════════════════════════════════════════
+function init() {
+  // 1. Restore saved preferences (dark mode, etc.)
+  loadPrefs();
+
+  // 2. Apply the saved default size if different from 3
+  if (prefs.size && prefs.size !== 3) {
+    rows = prefs.size; cols = prefs.size;
+    document.getElementById('inp-rows').value = rows;
+    document.getElementById('inp-cols').value = cols;
+  }
+
+  // 3. Draw the blank matrix grids
+  dataA = emptyMatrix(rows, cols);
+  dataB = emptyMatrix(rows, cols);
+  dataR = emptyMatrix(rows, cols);
+  render();
+
+  // 4. Draw history sidebar from pre-loaded server data
+  renderHistory();
+
+  // 5. Load profile stats asynchronously (non-blocking)
+  loadProfileStats();
+}
+
+init();
+</script>
+</body>
+</html>

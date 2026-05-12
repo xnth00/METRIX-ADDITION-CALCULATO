@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign Up — Matrix Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --border: #e2e2dc;
+    --border-strong: #c8c8c0;
+    --accent-a: #185FA5;
+    --accent-b: #3B6D11;
+    --accent-r: #A32D2D;
+    --text: #1a1a1a;
+    --muted: #6b6b66;
+    --cell-bg: #f0f4fb;
+    --cell-focus-border: #378ADD;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "Space Mono", monospace;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 40px 36px 36px;
+    width: 100%; max-width: 420px;
+    box-shadow: 0 2px 24px rgba(0,0,0,0.05);
+  }
+  .logo { text-align: center; margin-bottom: 28px; }
+  .logo h1 {
+    font-family: "Syne", sans-serif;
+    font-size: 1.8rem; font-weight: 700;
+    letter-spacing: -0.5px; margin-bottom: 4px;
+  }
+  .logo h1 span.a { color: var(--accent-a); }
+  .logo h1 span.b { color: var(--accent-b); }
+  .tabs {
+    display: flex; border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 4px;
+    margin-bottom: 28px; gap: 4px;
+  }
+  .tab {
+    flex: 1; padding: 8px; text-align: center;
+    font-family: "Space Mono", monospace;
+    font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s, color 0.15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--accent-a); color: #fff; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block; font-size: 0.68rem;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .form-group input {
+    width: 100%; height: 42px; padding: 0 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--cell-bg); color: var(--text);
+    font-family: "Space Mono", monospace; font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .form-group input:hover { background: #fff; }
+  .form-group input:focus {
+    border-color: var(--cell-focus-border);
+    box-shadow: 0 0 0 3px rgba(55,138,221,0.12);
+    background: #fff;
+  }
+
+  .pw-wrap { position: relative; }
+  .pw-wrap input { padding-right: 42px; }
+  .pw-toggle {
+    position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); padding: 0;
+  }
+  .pw-toggle:hover { color: var(--text); }
+  .pw-toggle svg { width: 16px; height: 16px; display: block; }
+
+  .strength-bar { display: flex; gap: 4px; margin-top: 8px; }
+  .strength-seg {
+    flex: 1; height: 3px; border-radius: 99px;
+    background: var(--border); transition: background 0.2s;
+  }
+  .strength-label {
+    font-size: 0.6rem; color: var(--muted);
+    margin-top: 4px; text-align: right;
+  }
+
+  .alert {
+    border-radius: var(--radius-sm);
+    padding: 10px 14px; font-size: 0.7rem;
+    margin-bottom: 18px; line-height: 1.5;
+  }
+  .alert-error { background: #fdf0f0; border: 1px solid #f0c0c0; color: var(--accent-r); }
+  .alert-success { background: #f0faf3; border: 1px solid #b8dfc4; color: var(--accent-b); }
+
+  .checkbox-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    margin-bottom: 16px;
+  }
+  .checkbox-row input[type=checkbox] {
+    width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0;
+    accent-color: var(--accent-a); cursor: pointer;
+  }
+  .checkbox-row label {
+    font-size: 0.68rem; color: var(--muted);
+    cursor: pointer; line-height: 1.5;
+    text-transform: none; letter-spacing: 0;
+  }
+  .checkbox-row label a { color: var(--accent-a); text-decoration: none; }
+
+  .btn-submit {
+    width: 100%; height: 44px;
+    background: var(--accent-a); color: #fff;
+    border: none; border-radius: 999px;
+    font-family: "Space Mono", monospace;
+    font-size: 0.8rem; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    cursor: pointer; margin-top: 8px;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn-submit:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-submit:active { transform: translateY(0); }
+
+  .auth-footer {
+    text-align: center; margin-top: 20px;
+    font-size: 0.68rem; color: var(--muted);
+  }
+  .auth-footer a { color: var(--accent-a); text-decoration: none; }
+  .auth-footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="auth-card">
+
+  <div class="logo">
+    <h1><span class="a">Addition</span> Matrix <span class="b">Calculator</span></h1>
+  </div>
+
+  <div class="tabs">
+    <a href="{{ url_for('auth.login') }}" class="tab">Log In</a>
+    <a href="{{ url_for('auth.signup') }}" class="tab active">Sign Up</a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('auth.signup') }}" id="signup-form">
+
+    <div style="display:flex; gap:12px;">
+      <div class="form-group" style="flex:1;">
+        <label for="first_name">First Name</label>
+        <input type="text" id="first_name" name="first_name"
+               placeholder="John" value="{{ request.form.get('first_name', '') }}" required />
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label for="last_name">Last Name</label>
+        <input type="text" id="last_name" name="last_name"
+               placeholder="Doe" value="{{ request.form.get('last_name', '') }}" required />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email"
+             placeholder="you@email.com" value="{{ request.form.get('email', '') }}" required />
+    </div>
+
+    <div class="form-group">
+      <label for="password">Password</label>
+      <div class="pw-wrap">
+        <input type="password" id="password" name="password"
+               placeholder="Min. 8 characters" required oninput="checkStrength(this.value)" />
+        <button type="button" class="pw-toggle" onclick="togglePw('password', this)"
+                title="Show/hide password" aria-label="Toggle password visibility">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+      <div class="strength-bar">
+        <div class="strength-seg" id="seg1"></div>
+        <div class="strength-seg" id="seg2"></div>
+        <div class="strength-seg" id="seg3"></div>
+        <div class="strength-seg" id="seg4"></div>
+      </div>
+      <div class="strength-label" id="strength-label">&nbsp;</div>
+    </div>
+
+    <div class="form-group">
+      <label for="confirm_password">Confirm Password</label>
+      <div class="pw-wrap">
+        <input type="password" id="confirm_password" name="confirm_password"
+               placeholder="Repeat password" required />
+        <button type="button" class="pw-toggle" onclick="togglePw('confirm_password', this)"
+                title="Show/hide password" aria-label="Toggle password visibility">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="terms" name="terms" required />
+      <label for="terms">
+        I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
+      </label>
+    </div>
+
+    <button type="submit" class="btn-submit">Create Account</button>
+  </form>
+
+  <div class="auth-footer">
+    Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a>
+  </div>
+
+</div>
+
+<script>
+function togglePw(id, btn) {
+  const input = document.getElementById(id);
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function checkStrength(val) {
+  let score = 0;
+  if (val.length >= 8) score++;
+  if (/[A-Z]/.test(val)) score++;
+  if (/[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+
+  const colors = ['', '#E24B4A', '#EF9F27', '#185FA5', '#3B6D11'];
+  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+  for (let i = 1; i <= 4; i++) {
+    const seg = document.getElementById('seg' + i);
+    seg.style.background = i <= score ? colors[score] : 'var(--border)';
+  }
+  document.getElementById('strength-label').textContent = val.length ? labels[score] : '';
+}
+</script>
+</body>
+</html>
