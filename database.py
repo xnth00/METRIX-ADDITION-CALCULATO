@@ -15,7 +15,7 @@ rest of the project won't care which database is underneath.
 
 import sqlite3
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Name of the SQLite file (created automatically on first run)
 DATABASE_FILE = "matrix_app.db"
@@ -96,7 +96,7 @@ def create_user(email, password_hash, first_name, last_name):
             INSERT INTO users (email, password_hash, first_name, last_name, created_at)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (email, password_hash, first_name, last_name, datetime.now().isoformat()),
+            (email, password_hash, first_name, last_name, datetime.now(timezone.utc).isoformat()),
         )
         connection.commit()
         return cursor.lastrowid
@@ -145,7 +145,7 @@ def save_calculation(user_id, matrix_a, matrix_b, result):
 
     rows = len(matrix_a)
     cols = len(matrix_a[0]) if rows > 0 else 0
-    created_at = datetime.now().isoformat()
+    created_at = datetime.now(timezone.utc).isoformat()
 
     cursor.execute(
         """
